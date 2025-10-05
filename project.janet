@@ -1,0 +1,9 @@
+(declare-project
+ :name "fun"
+ :description "fun"
+ :dependencies [{:url "https://github.com/janet-lang/sqlite3.git"
+                 :tag "a19ec48cc5d7627b373af403b3b91736a68c47c5"}])
+
+(declare-executable
+ :name "fun"
+ :entry "main.janet")
