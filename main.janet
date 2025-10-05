@@ -1,24 +1,24 @@
 (import sqlite3 :as sql)
 
+(defn conn! []
+  (sql/open "database.db"))
+
+(def q sql/eval)
+
 (comment
- (sql/eval db `CREATE TABLE customers(id INTEGER PRIMARY KEY, name TEXT);`)
+ (q (conn!) `CREATE TABLE customers(id INTEGER PRIMARY KEY, name TEXT);`)
+ (q (conn!) `SELECT * FROM customers;`)
 
- (for i 0 1000
-   (sql/eval db `INSERT INTO customers VALUES(:id, :name);` {:name "John" :id i}))
+ # pretty print
+ (printf "%M" (curenv))
+ (printf "%P" (curenv))
 
- (sql/eval db `SELECT * FROM customers;`)
+ )
 
- (doc printf)
- (doc pp)
-
- (doc sql/eval)
-
- (let [[_ start] (os/clock :realtime :tuple)]
-   (for i 0 1000
-     (sql/eval db `SELECT * FROM customers;`))
-   (let [[_ end] (os/clock :realtime :tuple)]
-     (/ (/ (- end start) 1e6) 1000))))
+(def env (curenv))
 
 (defn main [&]
-  (def db (sql/open "test.db"))
-  (pp (sql/eval db `SELECT * FROM customers;`)))
+  (repl nil nil env))
+
+(comment
+ (make-image (curenv)))
