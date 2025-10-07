@@ -23,12 +23,12 @@
   (let [data (-> (q (conn!) (string `select data from image ` query))
                  first
                  (get :data))]
-    (if data (load-image data) @{})))
+    (if data (load-image data) (make-env compile-env))))
 
 (defn load-last-env []
     (merge-into
-     # compiled image functions have priority over loaded image functions
-     # meaning they cannot be modified
+     # Compiled image functions have priority over loaded image functions
+     # meaning they cannot be modified.
      (q-env `order by id desc limit 1`)
      compile-env))
 
@@ -43,24 +43,34 @@
   (repl nil nil (load-last-env)))
 
 (comment
- # proto env? root env 
- 
+
  (foobar)
- 
+
  (defn foobar []
    (printf "foo"))
+
+ (def fiber-test
+   (fiber/new (fn []
+                (yield 1)
+                (yield 2)
+                (yield 3)
+                (yield 4)
+                5)))
+ 
+ (resume fiber-test)
 
  # save env to db
  (save-env! (curenv))
 
  # remove a definition from env
  (set ((curenv) 'foobar) nil)
+ (set ((curenv) 'fiber-test) nil)
 
  (q (conn!) `select id from image order by id desc`)
 
  (repl nil nil
        (merge-into (q-env `where id = 1 limit 1`) (curenv)))
- 
+
  # can be used to (quit) nested repls
  (quit)
 
