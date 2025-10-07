@@ -12,10 +12,12 @@ jpm -l deps
 jpm -l build
 ```
 
-## Run
+## Run 
+
+This wills start a repl
 
 ```sh
-build/fun
+build/main
 ```
 
 ## lockfile
