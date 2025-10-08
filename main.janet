@@ -40,27 +40,29 @@
 
 (defn repl-handler [stream]
   (defer (net/close stream)
-    (def out-b @"")
-    (def result-fiber
-      (fiber/new
-       (fn []
-         (forever
-          (net/write stream out-b)
-          (buffer/clear out-b)
-          (yield)))))
-    (with-dyns [*out* out-b
-                *err* out-b]
-      (repl (fn [buf p]
-              (resume result-fiber)
-              (net/write stream
-                         (string
-                          "repl:"
-                          ((parser/where p) 0)
-                          ":"
-                          (parser/state p :delimiters) "> "))
-              (net/read stream 1024 buf))
-            nil
-            (load-last-env)))))
+    # This ensures the env we pass into the repl has the *out*/*err*
+    (with-env (load-last-env)
+      (def out-b @"")
+      (def result-fiber
+        (fiber/new
+         (fn []
+           (forever
+            (net/write stream out-b)
+            (buffer/clear out-b)
+            (yield)))))
+      (with-dyns [*out* out-b
+                  *err* out-b]
+        (repl (fn [buf p]
+                (resume result-fiber)
+                (net/write stream
+                           (string
+                            "repl:"
+                            ((parser/where p) 0)
+                            ":"
+                            (parser/state p :delimiters) "> "))
+                (net/read stream 1024 buf))
+              nil
+              (curenv))))))
 
 (defn main [&]
   (q (conn!) `create table if not exists image(id INTEGER PRIMARY KEY, data BLOB)`)
@@ -70,6 +72,15 @@
 (comment
  # sqlite connection pool
  # zstandard bindings
+ 
+ (let [out-b @""]
+   (with-dyns [*out* out-b
+               *err* out-b]
+     (do (printf "%M" 3)
+         (printf "%M" 4)))
+   out-b)
+
+ (doc +)
 
  (defn foo [x]
    (inc x))
@@ -78,6 +89,8 @@
 
  (defn bar []
    (foo 3))
+
+ (+ nil 3)
 
  (bar)
 
