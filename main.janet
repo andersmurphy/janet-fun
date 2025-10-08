@@ -26,11 +26,11 @@
     (if data (load-image data) (make-env compile-env))))
 
 (defn load-last-env []
-    (merge-into
-     # Compiled image functions have priority over loaded image functions
-     # meaning they cannot be modified.
-     (q-env `order by id desc limit 1`)
-     compile-env))
+  (merge-into
+   # Compiled image functions have priority over loaded image functions
+   # meaning they cannot be modified.
+   (q-env `order by id desc limit 1`)
+   compile-env))
 
 (defn save-env! [env]
   (let [id (-> (q (conn!) `select id from image order by id desc limit 1`)
@@ -38,16 +38,53 @@
     (q (conn!) `insert into image values(:id, :data)`
        {:id id :data (make-stubbed-image env)})))
 
+(defn repl-handler [stream]
+  (defer (net/close stream)
+    (def out-b @"")
+    (def result-fiber
+      (fiber/new
+       (fn []
+         (forever
+          (net/write stream out-b)
+          (buffer/clear out-b)
+          (yield)))))
+    (with-dyns [*out* out-b
+                *err* out-b]
+      (repl (fn [buf p]
+              (resume result-fiber)
+              (net/write stream
+                         (string
+                          "repl:"
+                          ((parser/where p) 0)
+                          ":"
+                          (parser/state p :delimiters) "> "))
+              (net/read stream 1024 buf))
+            nil
+            (load-last-env)))))
+
 (defn main [&]
   (q (conn!) `create table if not exists image(id INTEGER PRIMARY KEY, data BLOB)`)
-  (repl nil nil (load-last-env)))
+  (setdyn *redef* true) # Allows dynamically rebinding defs (perf cost).
+  (net/server "127.0.0.1" "7650" repl-handler))
 
 (comment
+ # sqlite connection pool
+ # zstandard bindings
 
- (foobar)
+ (defn foo [x]
+   (inc x))
 
- (defn foobar []
-   (printf "foo"))
+ (foo 3)
+
+ (defn bar []
+   (foo 3))
+
+ (bar)
+
+ (defn foo [x]
+   (dec x))
+
+ (bar)
 
  (def fiber-test
    (fiber/new (fn []
@@ -56,7 +93,7 @@
                 (yield 3)
                 (yield 4)
                 5)))
- 
+
  (resume fiber-test)
 
  # save env to db
@@ -68,11 +105,11 @@
 
  (q (conn!) `select id from image order by id desc`)
 
- (repl nil nil
-       (merge-into (q-env `where id = 1 limit 1`) (curenv)))
-
+ (repl nil nil (curenv))
  # can be used to (quit) nested repls
  (quit)
+
+ # nc localhost 7650
 
  # pretty print
  (printf "%M" (curenv))
